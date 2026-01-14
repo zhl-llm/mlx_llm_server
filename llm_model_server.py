@@ -19,7 +19,7 @@ if "baseline_mem" not in st.session_state:
 @st.cache_resource
 def init_model():
     start_mem = get_process_memory()
-    model_path = "models/qwen2.5-14b-instruct-mixed-4-6"
+    model_path = "models/Qwen2.5-7B-Instruct"
     model, tokenizer = load(model_path, {"lazy": True})
     end_mem = get_process_memory()
     return model, tokenizer, (end_mem - start_mem)
@@ -30,6 +30,9 @@ model, tokenizer, model_weight_mem = init_model()
 st.sidebar.header("💾 Memory Breakdown")
 st.sidebar.info(f"🏠 App Baseline: {st.session_state.baseline_mem:.2f} GB")
 st.sidebar.success(f"📦 Model Weights: {model_weight_mem:.2f} GB")
+st.sidebar.header("⚙️ Assistant Configuration")
+new_sys_prompt = st.sidebar.text_area("System Prompt", value="You are an accurate, professional, and concise AI assistant. Please answer users' questions in Chinese.")
+
 
 st.sidebar.header("📊 Real-time Metrics")
 ttft_metric = st.sidebar.empty()
@@ -37,11 +40,16 @@ tps_metric = st.sidebar.empty()
 cache_mem_metric = st.sidebar.empty()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {"role": "system", "content": new_sys_prompt}
+    ]
+else:
+    st.session_state.messages[0]["content"] = new_sys_prompt
 
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] != "system":
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 if prompt := st.chat_input("Type here..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -54,7 +62,11 @@ if prompt := st.chat_input("Type here..."):
         full_response = ""
         
         # Build Context string
-        context = "".join([f"{m['role']}: {m['content']}\n" for m in st.session_state.messages]) + "assistant: "
+        formatted_prompt = tokenizer.apply_chat_template(
+            st.session_state.messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
 
         # Performance Tracking
         start_time = time.time()
@@ -63,7 +75,7 @@ if prompt := st.chat_input("Type here..."):
 
         # --- CORRECT STREAMING LOOP ---
         # The key is iterating directly over stream_generate
-        for response in stream_generate(model, tokenizer, prompt=context, max_tokens=1000):
+        for response in stream_generate(model, tokenizer, prompt=formatted_prompt, max_tokens=1000):
             # 1. Handle Response Object (Supports both newer and older MLX versions)
             if hasattr(response, 'text'):
                 delta_text = response.text
