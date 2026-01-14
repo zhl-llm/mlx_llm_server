@@ -13,7 +13,7 @@ pip install huggingface_hub mlx mlx-lm fastapi streamlit uvicorn psutil tiktoken
 ## hf auth login
 
 ```sh
-token: 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
+token: hf_XXXXXX
 huggingface-cli download  Qwen/Qwen2.5-7B-Instruct --local-dir ./models/qwen2.5-7b-instruct
 ```
 
