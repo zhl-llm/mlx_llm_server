@@ -6,7 +6,7 @@ import mlx.core as mx  # 用于监控 Apple Silicon 显存
 from mlx_lm import load, stream_generate
 
 st.set_page_config(page_title="MLX M4 LLM 服务器", page_icon="⚡️")
-st.title("⚡️ MLX M4 LLM 服务器")
+st.title("⚡️ MLX M4 LLM 推理服务器")
 st.sidebar.header("⚙️ 助手配置")
 new_sys_prompt = st.sidebar.text_area("系统提示词 (System Prompt)", value="你是一个准确、专业且简洁的 AI 助手。请使用中文回答用户问题。")
 
@@ -30,15 +30,13 @@ def init_model():
     # 1. 记录应用启动基准
     baseline = get_process_memory()
 
-    model_path = "models/qwen2.5-7b-instruct"
+    model_path = "models/qwen2.5-14b-instruct-bits-8"
     model, tokenizer = load(model_path, {"lazy": True})
 
-    # 【关键修正】强制评估所有参数，确保权重真正占用显存
-    # 否则权重会被计入后续的 KV Cache 中
+    # 强制评估所有参数，确保权重真正占用显存，否则权重会被计入后续的 KV Cache 中
     mx.eval(model.parameters())
 
-    # 2. 此时获取的活动显存即为“纯静态权重”
-    # 使用推荐的新版 API: mx.get_active_memory()
+    # 2. 此时获取的活动显存即为“纯静态权重”，使用推荐的新版 API: mx.get_active_memory()
     total_active_now = mx.get_active_memory() / (1024 ** 3)
 
     return model, tokenizer, total_active_now
@@ -69,11 +67,10 @@ def update_metrics(token_count):
     # C. 获取系统进程内存 (作为参考)
     current_rss = get_process_memory()
 
-    # --- 界面更新 ---
-    ###
+    ########################################################################
     ### “系统进程内存 (RSS)” 会远小于“活动显存”。这是因为 Apple Metal 框架分配的内存
     ### 会被归类为“系统驱动层占用”，而不完全计入“用户进程私有占用”。
-    ###
+    ########################################################################
     # 1. 系统进程内存：反映 macOS 报告的物理占用
     sys_mem_metric.metric("🖥️ 系统进程内存 (RSS)", f"{current_rss:.3f} GB")
 
@@ -81,7 +78,7 @@ def update_metrics(token_count):
     mlx_active_metric.metric("🧠 实际活动显存", f"{current_active_gb:.3f} GB")
 
     # 3. KV Cache：显示高精度数值或转为 MB
-    if kv_cache_gb < 0.1:
+    if kv_cache_gb < 0.5:
         cache_mem_metric.metric("🌀 KV Cache 占用", f"{kv_cache_gb * 1024:.2f} MB")
     else:
         cache_mem_metric.metric("🌀 KV Cache 占用", f"{kv_cache_gb:.4f} GB")
@@ -131,13 +128,14 @@ if prompt := st.chat_input("在此输入消息..."):
             # 2. 记录首个 Token 到达时间 (TTFT)
             if ttft is None and delta_text.strip() != "":
                 ttft = time.time() - start_time
-                ttft_metric.metric("首字延迟 (TTFT)", f"{ttft*1000:.2f} ms")
+                generation_start_time = time.time() # 从这一刻开始算 TPS
+                ttft_metric.metric("🚀 首字延迟", f"{ttft*1000:.0f} ms")
 
             # 3. 计算生成速度 (TPS)
-            elapsed = time.time() - start_time
-            if ttft:
-                current_tps = token_count / (elapsed - ttft) if (elapsed - ttft) > 0 else 0
-                tps_metric.metric("生成速度", f"{current_tps:.2f} t/s")
+            if generation_start_time:
+                t_elapsed = time.time() - generation_start_time
+                if t_elapsed > 0:
+                    tps_metric.metric("⚡️ 生成速度", f"{token_count / t_elapsed:.2f} t/s")
 
             # 4. 更新 Token 统计
             token_count_metric.metric("已生成 Token", f"{token_count} tokens")
