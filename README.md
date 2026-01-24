@@ -60,6 +60,8 @@ mlx_lm.convert \
   --quant-predicate mixed_4_6
 ```
 
+## LLM server
+
 ### Start directly the LLM server with mlx_lm.server
 
 ```sh
