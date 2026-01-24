@@ -10,14 +10,14 @@ pip install --upgrade pip
 pip install huggingface_hub mlx mlx-lm fastapi streamlit uvicorn psutil tiktoken transformers modelscope
 ```
 
-## hf auth login
+## Download models 
+
+### Download models with huggigface
 
 ```sh
-token: hf_XXXXXX
+export HF_TOKEN=hf_XXXXXX
 huggingface-cli download  Qwen/Qwen2.5-7B-Instruct --local-dir ./models/qwen2.5-7b-instruct
 ```
-
-## Download or convert models with mlx_lm
 
 ### Download models with modelscope
 
@@ -25,10 +25,12 @@ huggingface-cli download  Qwen/Qwen2.5-7B-Instruct --local-dir ./models/qwen2.5-
 modelscope download --model Qwen/Qwen-14B-Chat
 ```
 
+## Download or convert models with mlx_lm
+
 ### Download quantization models with mlx_lm.convert
 
 ```sh
-export HF_TOKEN=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
+export HF_TOKEN=hf_XXXXXX
 
 # Convert model with q4 quantization
 mlx_lm.convert \
@@ -61,7 +63,7 @@ mlx_lm.convert \
 ### Start directly the LLM server with mlx_lm.server
 
 ```sh
-python -m mlx_lm server --model /Users/zhlsunshine/Projects/inference/models/qwen2.5-14b-base-bits-4 --port 8080
+python -m mlx_lm server --model /Users/zhlsunshine/Projects/inference/models/qwen2.5-14b-instruct-bits-8 --port 8080
 ```
 
 ### Start the LLM server with UI server
