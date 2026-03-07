@@ -8,7 +8,7 @@ from mlx_lm import load, stream_generate
 st.set_page_config(page_title="MLX M4 LLM 服务器", page_icon="⚡️")
 st.title("⚡️ MLX M4 LLM 推理服务器")
 st.sidebar.header("⚙️ 助手配置")
-new_sys_prompt = st.sidebar.text_area("系统提示词 (System Prompt)", value="你是一个准确、专业且简洁的 AI 助手。请使用中文回答用户问题。")
+new_sys_prompt = st.sidebar.text_area("系统提示词 (System Prompt)", value="你是一个专业的 你是一个专业的AI辅助机器人，请认真且准确地回答问题。")
 
 st.sidebar.header("📈 实时性能指标")
 ttft_metric = st.sidebar.empty() # 首个 Token 延迟
@@ -30,7 +30,7 @@ def init_model():
     # 1. 记录应用启动基准
     baseline = get_process_memory()
 
-    model_path = "models/qwen2.5-14b-instruct-bits-8"
+    model_path = "models/MiniCPM4.1-8B-MLX"
     model, tokenizer = load(model_path, {"lazy": True})
 
     # 强制评估所有参数，确保权重真正占用显存，否则权重会被计入后续的 KV Cache 中
@@ -39,9 +39,10 @@ def init_model():
     # 2. 此时获取的活动显存即为“纯静态权重”，使用推荐的新版 API: mx.get_active_memory()
     total_active_now = mx.get_active_memory() / (1024 ** 3)
 
-    return model, tokenizer, total_active_now
+    return model, tokenizer, total_active_now, model_path
 
-model, tokenizer, model_weight_mem = init_model()
+model, tokenizer, model_weight_mem, model_path = init_model()
+st.sidebar.markdown(f"**Model:** {model_path}")
 
 # --- 侧边栏设置 (内存指标整合) ---
 st.sidebar.header("📊 内存动态监控")
@@ -118,7 +119,7 @@ if prompt := st.chat_input("在此输入消息..."):
         token_count = 0
 
         # --- 流式生成循环 ---
-        for response in stream_generate(model, tokenizer, prompt=formatted_prompt, max_tokens=1000):
+        for response in stream_generate(model, tokenizer, prompt=formatted_prompt, max_tokens=102400):
             # 1. 处理响应对象 (兼容不同 MLX 版本)
             delta_text = response.text if hasattr(response, 'text') else response
             
