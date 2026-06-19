@@ -4,6 +4,7 @@
 
 ```sh
 pyenv install --list
+pyenv install 3.12.12
 pyenv virtualenv 3.12.12 mlx-env
 source ~/.pyenv/versions/mlx-env/bin/activate
 
